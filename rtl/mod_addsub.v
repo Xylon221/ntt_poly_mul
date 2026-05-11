@@ -1,12 +1,11 @@
 `timescale 1ns / 1ps
-// Modular adder / subtractor for Q = 12289
-// Uses clean arithmetic with explicit width extensions
+// 模加减法器  — 计算 a ± b mod 12289
 
 module mod_addsub (
     input  wire        clk,
     input  wire        rst_n,
     input  wire        valid_in,
-    input  wire        sub,           // 0=add, 1=subtract
+    input  wire        sub,           // 0=加, 1=减
     input  wire [13:0] a,
     input  wire [13:0] b,
     output reg  [13:0] result,
@@ -14,7 +13,7 @@ module mod_addsub (
 );
     localparam Q = 14'd12289;
 
-    // Stage 0: compute a+b and a+Q-b (15 bits to avoid overflow)
+    // Stage 0: 计算 a+b 和 a+Q-b (15-bit 防溢出)
     reg [14:0] sum_r, diff_r;
     reg        sub_r, valid_r0;
 
@@ -34,7 +33,7 @@ module mod_addsub (
         end
     end
 
-    // Stage 1: modular reduction
+    // Stage 1: 模约简
     wire [13:0] sum_red  = (sum_r  >= Q) ? (sum_r[13:0]  - Q) : sum_r[13:0];
     wire [13:0] diff_red = (diff_r >= Q) ? (diff_r[13:0] - Q) : diff_r[13:0];
 

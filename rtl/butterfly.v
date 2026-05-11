@@ -1,14 +1,12 @@
 `timescale 1ns / 1ps
-// NTT Butterfly unit (3-stage pipeline)
+// NTT 蝶形运算单元 (3 级流水线)
 //
-// mode=0: forward NTT (DIF GS butterfly)
+// mode=0: 正向 NTT (DIF, Gentleman-Sande 蝶形)
 //   a' =  a + b  (mod Q)
 //   b' = (a - b) * w  (mod Q)
-// mode=1: inverse NTT (DIT CT butterfly)
+// mode=1: 逆向 NTT (DIT, Cooley-Tukey 蝶形)
 //   a' =  a + b * w  (mod Q)
 //   b' =  a - b * w  (mod Q)
-//
-// All arithmetic uses explicit width extensions to avoid truncation.
 
 module butterfly (
     input  wire        clk,
@@ -25,7 +23,7 @@ module butterfly (
     localparam Q  = 14'd12289;
     localparam MU = 15'd21843;
 
-    // ---- Stage 0: add, sub, capture a, b, w ----
+    // ---- Stage 0: 加减法, 捕获 a, b, w ----
     reg [14:0] add_s0;
     reg [14:0] sub_s0;
     reg [13:0] a_r, b_r, w_r;
@@ -54,7 +52,7 @@ module butterfly (
         end
     end
 
-    // ---- Stage 1: modular reduce, compute b*w for inverse ----
+    // ---- Stage 1: 模约简, 计算 b*w 供逆 NTT 使用 ----
     wire [13:0] add_red = (add_s0 >= Q) ? (add_s0[13:0] - Q) : add_s0[13:0];
     wire [13:0] sub_red = (sub_s0 >= Q) ? (sub_s0[13:0] - Q) : sub_s0[13:0];
 
@@ -91,15 +89,15 @@ module butterfly (
         end
     end
 
-    // ---- Stage 2: final outputs ----
-    // Forward: (a - b) * w
+    // ---- Stage 2: 最终输出 ----
+    // 正向: (a - b) * w
     wire [27:0] sw_prod = sub_red_r * w_r_r;
     wire [42:0] sw_wide = sw_prod * MU;
     wire [13:0] sw_t    = sw_wide[41:28];
     wire [27:0] sw_r1   = sw_prod - sw_t * Q;
     wire [13:0] sw_red  = (sw_r1 >= Q) ? (sw_r1[13:0] - Q) : sw_r1[13:0];
 
-    // Inverse: a + b*w and a - b*w
+    // 逆向: a + b*w 和 a - b*w
     wire [14:0] inv_sum  = {1'b0, a_r_r} + {1'b0, bw_red_r};
     wire [14:0] inv_diff = {1'b0, a_r_r} + Q - {1'b0, bw_red_r};
     wire [13:0] inv_a    = (inv_sum  >= Q) ? (inv_sum[13:0]  - Q) : inv_sum[13:0];

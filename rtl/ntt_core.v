@@ -1,17 +1,17 @@
 `timescale 1ns / 1ps
-// NTT Core Controller — iterative radix-2 DIF/DIT with single butterfly
+// NTT 核心控制器 — 迭代基-2 DIF/DIT，单蝶形单元
 //
-// DIF forward NTT (mode=0): uses omega = 49 as primitive N-th root
-// DIT inverse NTT (mode=1): uses omega^(-1) as root
+// mode=0: DIF 正向 NTT，使用 omega=49 为本原 N 次根
+// mode=1: DIT 逆向 NTT，使用 omega^(-1) 为根
 //
-// Memory addresses are 12-bit: {base_sel, inner_addr[9:0]}
+// 内存地址 12-bit: {base_sel, inner_addr[9:0]}
 
 module ntt_core (
     input  wire        clk,
     input  wire        rst_n,
     input  wire        start,
-    input  wire        mode,           // 0=forward, 1=inverse
-    input  wire [1:0]  base_sel,       // memory region
+    input  wire        mode,           // 0=正向, 1=逆向
+    input  wire [1:0]  base_sel,       // 内存区域选择
     output reg         done,
 
     output reg  [11:0] mem_addr_a,
@@ -52,20 +52,20 @@ module ntt_core (
     reg [9:0]  stride;
     reg [9:0]  group;
     reg [9:0]  offset;
-    reg [1:0]  pipe_cnt;     // pipeline wait counter
+    reg [1:0]  pipe_cnt;     // 流水线等待计数器
     reg [13:0] bf_res_a_r, bf_res_b_r;
 
-    // Inner address computation (0..1023)
+    // 内层地址计算 (0..1023)
     wire [9:0] group_size = stride << 1;
     wire [9:0] group_base = group * group_size;
     wire [9:0] inner_a    = group_base + offset;
     wire [9:0] inner_b    = inner_a + stride;
 
-    // Full 12-bit memory addresses
+    // 完整 12-bit 内存地址
     wire [11:0] full_a = {base_sel, inner_a};
     wire [11:0] full_b = {base_sel, inner_b};
 
-    // ---- Forward twiddle stage base ----
+    // ---- 正向旋转因子 stage base ----
     function [10:0] stage_base_fw;
         input [3:0] s;
         begin
@@ -85,7 +85,7 @@ module ntt_core (
         end
     endfunction
 
-    // ---- Inverse twiddle stage base ----
+    // ---- 逆向旋转因子 stage base ----
     function [10:0] stage_base_inv;
         input [3:0] s;
         begin
@@ -105,7 +105,7 @@ module ntt_core (
         end
     endfunction
 
-    // Twiddle ROM address
+    // 旋转因子 ROM 地址
     wire [11:0] fw_idx  = 12'd0     + {1'b0, stage_base_fw(stage)}  + {2'b0, offset};
     wire [11:0] inv_idx = 12'd1023  + {1'b0, stage_base_inv(stage)} + {2'b0, offset};
 
@@ -136,7 +136,7 @@ module ntt_core (
                     end
                 end
 
-                // Set addresses and twiddle
+                // 设置地址和旋转因子
                 S_READ: begin
                     mem_addr_a   <= full_a;
                     mem_addr_b   <= full_b;
@@ -146,7 +146,7 @@ module ntt_core (
                     state <= S_ISSUE;
                 end
 
-                // Issue butterfly
+                // 发出蝶形运算
                 S_ISSUE: begin
                     bf_valid <= 1'b1;
                     bf_mode  <= mode;
@@ -157,7 +157,7 @@ module ntt_core (
                     state    <= S_PIPE;
                 end
 
-                // Wait for pipeline (3 cycles of bf_valid high + 1 extra for valid_out)
+                // 等待流水线 (3 周期 bf_valid 高 + 1 周期 valid_out)
                 S_PIPE: begin
                     pipe_cnt <= pipe_cnt + 1;
                     if (pipe_cnt == 2'd3) begin
@@ -168,7 +168,7 @@ module ntt_core (
                     end
                 end
 
-                // Write back results
+                // 写回结果
                 S_WRITE: begin
                     mem_addr_a  <= full_a;
                     mem_we_a    <= 1'b1;
@@ -179,11 +179,11 @@ module ntt_core (
                     state <= S_NEXT;
                 end
 
-                // Advance to next butterfly
+                // 前进到下一个蝶形
                 S_NEXT: begin
                     {mem_we_a, mem_we_b} <= 2'b00;
                     if (mode) begin
-                        // Inverse: stride grows (1, 2, 4, ..., 512)
+                        // 逆向: stride 递增 (1, 2, 4, ..., 512)
                         if (offset + 1 < stride) begin
                             offset <= offset + 1;
                             state  <= S_READ;
@@ -204,7 +204,7 @@ module ntt_core (
                             end
                         end
                     end else begin
-                        // Forward: stride shrinks (512, 256, ..., 1)
+                        // 正向: stride 递减 (512, 256, ..., 1)
                         if (offset + 1 < stride) begin
                             offset <= offset + 1;
                             state  <= S_READ;
