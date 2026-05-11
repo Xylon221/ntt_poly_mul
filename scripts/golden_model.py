@@ -12,9 +12,11 @@
 """
 
 import os
+import random
 
 Q = 12289
 N = 1024
+SEED = 42
 PSI = 7
 OMEGA = (PSI * PSI) % Q   # 49
 
@@ -106,9 +108,10 @@ def write_hex(filename, data):
 
 
 if __name__ == "__main__":
-    # 测试多项式
-    a = [(i + 1) % Q for i in range(N)]          # 1, 2, 3, ..., 1024
-    b = [(N - i) % Q for i in range(N)]           # 1024, 1023, ..., 1
+    # 随机测试多项式 (固定种子, 可复现)
+    random.seed(SEED)
+    a = [random.randint(0, Q - 1) for _ in range(N)]
+    b = [random.randint(0, Q - 1) for _ in range(N)]
 
     c_ntt = poly_mul_ntt(a, b)
     c_naive = poly_mul_naive(a, b)
@@ -119,12 +122,21 @@ if __name__ == "__main__":
     rt = [(rt_raw[i] * N_INV) % Q for i in range(N)]
     assert rt[:10] == list(range(10)), f"往返测试失败: {rt[:10]}"
 
+    print(f"随机种子: {SEED}")
     print("往返测试通过 ✓")
     print("NTT 黄金模型与朴素卷积一致 ✓")
+
+    # 打印前20和后20项
+    print(f"\n  输入 A 前20: {a[:20]}")
+    print(f"  输入 A 后20: {a[1004:]}")
+    print(f"\n  输入 B 前20: {b[:20]}")
+    print(f"  输入 B 后20: {b[1004:]}")
+    print(f"\n  期望输出 C 前20: {c_ntt[:20]}")
+    print(f"  期望输出 C 后20: {c_ntt[1004:]}")
 
     # 写入测试向量 hex 文件
     base = os.path.dirname(__file__)
     write_hex(os.path.join(base, "..", "sim", "tv_a.hex"), a)
     write_hex(os.path.join(base, "..", "sim", "tv_b.hex"), b)
     write_hex(os.path.join(base, "..", "sim", "tv_exp.hex"), c_ntt)
-    print("测试向量 hex 文件已写入 ✓")
+    print("\n测试向量 hex 文件已写入 ✓")
